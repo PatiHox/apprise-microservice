@@ -1,21 +1,32 @@
 import apprise
 import os
+import re
+import urllib.parse
 from flask import Flask, request
 
-if 'NOTIFICATION_URLS' in os.environ.keys():
-    urls = os.environ['NOTIFICATION_URLS']
-elif 'NOTIFICATION_URLS_FILE' in os.environ.keys():
-    with open(os.environ['NOTIFICATION_URLS_FILE'], 'r') as secrets_file:
-        urls = secrets_file.read()
+if 'SERVICES' in os.environ.keys():
+    services = os.environ['SERVICES']
+if 'WEBHOOK_BASE_URL' in os.environ.keys():
+    webhook_base_url = os.environ['WEBHOOK_BASE_URL']
 
-apobj = apprise.Apprise()
-apobj.add(urls)
+aplist = dict()
+
+for service in services:
+    apobj = apprise.Apprise()
+    
+    apobj.add(urllib.parse.urljoin(webhook_base_url, service))
+    aplist[service] = apobj
 
 app = Flask(__name__)
 
 @app.route('/', methods=['POST'])
 def hello_world():
     data = request.get_json(force=True)
+    body = data['body']
+    service = re.search("(?<=Service )(\S+)", body).group()
+
+    apobj = aplist[service]
+
     apobj.notify(
         title=data['title'],
         body=data['body'],
