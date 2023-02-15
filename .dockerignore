@@ -2,3 +2,4 @@ Dockerfile
 docker-compose.yml
 docker-compose.example.yml
 README.md
+__pycache__
