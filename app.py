@@ -1,21 +1,22 @@
 import apprise
 import os
 import re
-import urllib.parse
 from flask import Flask, request
 
+services = ["backend"]
+webhook_base_url = "json://localhost:8080/webhook-step/"
+
 if 'SERVICES' in os.environ.keys():
-    services = os.environ['SERVICES']
+    services = os.environ['SERVICES'].split(',')
 if 'WEBHOOK_BASE_URL' in os.environ.keys():
     webhook_base_url = os.environ['WEBHOOK_BASE_URL']
 
-aplist = dict()
+apobj = apprise.Apprise()
 
 for service in services:
-    apobj = apprise.Apprise()
-    
-    apobj.add(urllib.parse.urljoin(webhook_base_url, service))
-    aplist[service] = apobj
+    url = webhook_base_url + service
+    print (url)
+    apobj.add(url, tag=service)
 
 app = Flask(__name__)
 
@@ -23,12 +24,18 @@ app = Flask(__name__)
 def hello_world():
     data = request.get_json(force=True)
     body = data['body']
-    service = re.search("(?<=Service )(\S+)", body).group()
+    try:
+        service = re.search("(?<=Service )(\S+)", body).group()
 
-    apobj = aplist[service]
+        print ("Received data : " + body + " found service name: " + service)
 
-    apobj.notify(
-        title=data['title'],
-        body=data['body'],
-    )
-    return 'ok'
+        apobj.notify(
+            title=data['title'],
+            body=body,
+            tag=service
+        )
+        return 'ok'
+    except:
+        print ("Error reading data")
+
+        return 'fail'
